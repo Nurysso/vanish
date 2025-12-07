@@ -140,7 +140,7 @@ func ShowUsage(config types.Config) {
 	// fmt.Printf("  %s %s\n", commandStyle.Render("vx --completion zsh"), descStyle.Render("# Generate Zsh completion"))
 	// fmt.Printf("  %s %s\n", commandStyle.Render("vx --completion fish"), descStyle.Render("# Generate Fish completion"))
 	// fmt.Println()
-	fmt.Println(footerStyle.Render("For more information visit: https://github.com/Aelune/vanish"))
+	fmt.Println(footerStyle.Render("For more information visit: https://github.com/Nurysoo/vanish"))
 }
 
 // ShowUsageFallback is a alternative fallback to simple output if colors are not available
@@ -191,5 +191,5 @@ func ShowUsageFallback(config types.Config) {
 	fmt.Printf("  Current theme: %s\n", config.UI.Theme)
 	fmt.Printf("  Logging: %v\n", config.Logging.Enabled)
 	// fmt.Printf("  Notifications: %v\n", config.Notifications.DesktopEnabled)
-	fmt.Println("\n\nFor more information visit: https://github.com/Aelune/vanish")
+	fmt.Println("\n\nFor more information visit: https://github.com/Nurysoo/vanish")
 }

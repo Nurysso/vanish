@@ -4,3 +4,6 @@ currentFuncs
 compare/
 /build/bin/vx
 .idea/
+vanish-*
+pkg/
+src/

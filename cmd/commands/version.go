@@ -7,14 +7,9 @@ import (
 // Version information
 const (
 	VERSION = "0.9.2"
-	// NAME BUILD_DATE = "2024-01-15"
 	NAME = "ares-cinnamon"
-	//AUTHOR = "Aelune"
+	//AUTHOR = "Nurysoo"
 )
-
-// func PrintVersion() {
-// 	fmt.Printf("vx %s (commit: %s, built: %s)\n", Version)
-// }
 
 // ShowVersion displays version information of vanish with alias name too
 func ShowVersion() {

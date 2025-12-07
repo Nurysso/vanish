@@ -1,225 +1,358 @@
-# Vanish (vx) 🗑️
+<div align="center">
 
-<!-- [![GitHub tag (latest by date)](https://img.shields.io/github/v/tag/Aelune/vanish?style=flat-square)](https://github.com/Aelune/vanish/tags) -->
-[![Release](https://img.shields.io/github/v/release/Aelune/vanish?include_prereleases&style=flat-square)](https://github.com/Aelune/vanish/releases/tag/v0.9.0)
-[![License](https://img.shields.io/github/license/Aelune/vanish?style=flat-square)](LICENSE)
+# 🗑️ Vanish (vx)
 
+### *A modern, safe file deletion tool with recovery capabilities*
 
-### A modern, safe file deletion tool with recovery capabilities and beautiful TUI interface.
+[![Release](https://img.shields.io/github/v/release/Nurysso/vanish?include_prereleases&style=flat-square)](https://github.com/Nurysso/vanish/releases/tag/v0.9.0)
+[![License](https://img.shields.io/github/license/Nurysso/vanish?style=flat-square)](LICENSE)
 
-Vanish provides a secure alternative to permanent file deletion by moving files to a managed cache with full recovery options. Never lose important files again with intelligent backup, pattern-based restoration, and comprehensive file management.
+[Features](#-features) • [Installation](#-installation) • [Quick Start](#-quick-start) • [Themes](#-themes--customization) • [Documentation](#-command-reference)
 
-## ✨ Features
+</div>
 
-- 🛡️ **Safe Deletion**: Files are moved to cache, not permanently deleted
-- 🔄 **Pattern-based Recovery**: Restore files using flexible pattern matching
-- 📊 **Rich Statistics**: Detailed insights into cache usage and file metrics
-- 🎨 **Beautiful TUI**: Modern terminal interface with 8 built-in themes
-- ⚡ **Fast Operations**: Optimized for handling large directories and multiple files
-- 🔧 **Highly Configurable**: Extensive customization options via TOML config
-<!-- - 🔔 **Smart Notifications**: Desktop notifications for operations (Linux/macOS/Windows) -->
-- 📝 **Comprehensive Logging**: Track all operations with detailed audit trails
-- 🧹 **Automated Cleanup**: Configurable retention policies and purging
-<!-- - 🐚 **Shell Completion**: Full completion support for Bash, Zsh, Fish, PowerShell -->
+---
+
+## 🎥 See It In Action
+
+<div align="center">
+
+<img src ="https://raw.githubusercontent.com/Nurysso/Hermes/main/vanish/vanish.gif" width="900">
+
+*Demo showing Vanish's TUI interface, file deletion, restoration, and theme customization*
+
+</div>
+
+> **Note:** Replace the video URL above with your actual demo video hosted on GitHub. Upload via Issues → New Issue → drag and drop the MP4 → copy the generated URL.
+
+---
+
+## 🌟 Why Vanish?
+
+Accidentally deleted an important file? Vanish gives you peace of mind with a **smart cache system** that lets you recover files easily. Say goodbye to permanent deletion anxiety and hello to confident file management.
+
+### ✨ Features
+
+<table>
+<tr>
+<td width="50%">
+
+🛡️ **Safe Deletion**
+Files move to cache, never truly deleted
+
+🔄 **Pattern-based Recovery**
+Restore using wildcards and flexible matching
+
+📊 **Rich Statistics**
+Track cache usage and file metrics
+
+🎨 **Beautiful TUI**
+8 stunning built-in themes
+
+</td>
+<td width="50%">
+
+⚡ **Blazing Fast**
+Handles large directories effortlessly
+
+🔧 **Highly Configurable**
+Customize via simple TOML config
+
+📝 **Audit Trails**
+Complete operation logging
+
+🧹 **Auto Cleanup**
+Configurable retention policies
+
+</td>
+</tr>
+</table>
+
+---
 
 ## 🚀 Installation
-#### Using `curl`
+
+### Quick Install (Recommended)
+
+**Using curl:**
 ```bash
-curl -LsSf https://raw.githubusercontent.com/Aelune/vanish/main/install.sh | sh
+curl -LsSf https://raw.githubusercontent.com/Nurysso/vanish/main/install.sh | sh
 ```
-### Using `wget`
+
+**Using wget:**
 ```bash
-wget -qO- https://raw.githubusercontent.com/Aelune/vanish/main/install.sh | sh
+wget -qO- https://raw.githubusercontent.com/Nurysso/vanish/main/install.sh | sh
 ```
-### Requesting a specific version tag (`v0.9.0`)
+
+### Install Specific Version
+
+Replace `<tag>` with your desired version (e.g., `v0.9.0`):
+
 ```bash
-curl -LsSf https://raw.githubusercontent.com/Aelune/vanish/<tag>/install.sh | sh
-```
-```bash
-wget -qO- https://raw.githubusercontent.com/Aelune/vanish/<tag>/install.sh | sh
+curl -LsSf https://raw.githubusercontent.com/Nurysso/vanish/<tag>/install.sh | sh
 ```
 
 ### Build from Source
+
 ```bash
-git clone https://github.com/Aelune/vanish.git
+git clone https://github.com/Nurysso/vanish.git
 cd vanish && make build
 sudo mv vx /usr/local/bin/
 ```
 
-<!-- ### Package Managers
-```bash
-# Homebrew (macOS/Linux)
-brew install Aelune/tap/vanish
-
-# Arch Linux (AUR)
-yay -S vanish-bin
-
-# Snap
-sudo snap install vanish
-``` -->
+---
 
 ## 📖 Quick Start
 
-### Basic Usage
+### Basic Operations
+
 ```bash
 # Delete files/directories safely
 vx file.txt folder/ *.log
 
-# List cached files
+# List everything in cache
 vx --list
 
-# Restore specific files
-vx --restore .txt project-n
+# Restore files by pattern
+vx --restore "*.txt" "project-*"
 
-# View detailed information
+# Get detailed file info
 vx --info "important-file"
 
-# Clear all cached files
+# Clear entire cache
 vx --clear
 
-# Purge files older than 30 days
+# Remove files older than 30 days
 vx --purge 30
 
-# Check cache statistics
+# View cache statistics
 vx --stats
 
-# Restore with no confirmation
+# Skip confirmations (use with caution!)
 vx --restore --noconfirm "*.backup"
-
-# View available themes
-vx --themes
 ```
+
+---
 
 ## 🎨 Themes & Customization
 
-Vanish includes 8 beautiful built-in themes:
+Vanish includes **8 gorgeous themes** designed for different moods and environments:
 
-| Theme | Description |
-|-------|-------------|
-| `default` | Clean, professional look |
-| `dark` | High contrast dark mode |
-| `light` | Bright, minimal interface |
-| `cyberpunk` | Neon colors with retro-futuristic feel |
-| `minimal` | Ultra-clean, distraction-free |
-| `ocean` | Calming blues and teals |
-| `forest` | Natural greens and earth tones |
-| `sunset` | Warm oranges and purples |
+<table>
+<tr>
+<td align="center" width="25%">
+
+**Default**
+🎯 Clean & Professional
+
+</td>
+<td align="center" width="25%">
+
+**Dark**
+🌑 High Contrast
+
+</td>
+<td align="center" width="25%">
+
+**Light**
+☀️ Bright & Minimal
+
+</td>
+<td align="center" width="25%">
+
+**Cyberpunk**
+🌆 Neon Futuristic
+
+</td>
+</tr>
+<tr>
+<td align="center" width="25%">
+
+**Minimal**
+✨ Distraction-Free
+
+</td>
+<td align="center" width="25%">
+
+**Ocean**
+🌊 Calming Blues
+
+</td>
+<td align="center" width="25%">
+
+**Forest**
+🌲 Natural Greens
+
+</td>
+<td align="center" width="25%">
+
+**Sunset**
+🌅 Warm & Cozy
+
+</td>
+</tr>
+</table>
+
+### Try Them Out
 
 ```bash
-# Preview all themes interactively
+# Interactive theme selector
 vx --themes
 ```
 
-## ⚙️ Configuration
+Customize further via the [configuration file](https://github.com/Nurysso/vanish/blob/main/docs/configuration/default-config.md).
 
-Vanish uses a TOML based configuration for easy understanding look at [Config Documentation](https://github.com/Aelune/vanish/blob/main/docs/configuration/default-config.md)
-
-<!-- ## 🔧 Shell Completion
-
-Enable tab completion for enhanced productivity:
-
-```bash
-# Bash
-vx --completion bash | sudo tee /etc/bash_completion.d/vx
-
-# Zsh
-vx --completion zsh > ~/.oh-my-zsh/completions/_vx
-
-# Fish
-vx --completion fish > ~/.config/fish/completions/vx.fish
-
-# PowerShell
-vx --completion powershell >> $PROFILE
-``` -->
+---
 
 ## 📋 Command Reference
 
-### File Operations
-| Command | Description |
-|---------|-------------|
-| `vx <files...>` | Move files/directories to cache |
-| `vx -r <pattern>` `vx --restore <pattern>` | Restore file based on patter so it can restore multiple files better use `vx -i` or `vx -l` and find exact fine to restore
-| `vx -l` `vx --list` | Show all cached files |
-| `vx -i <patern>` `vx --info <pattern>` | Detailed info about cached items |
-| `vx -c` `vx --clear` | Empty entire cache |
-| `vx -pr <days>` `vx --purge <days>` | Remove files older than N days |
-| `vx -s` `vx --stats` | Cache usage statistics |
-| `vx -p` `vx --path` | Show cache directory path |
-| `vx -t` `vx --themes` | Interactive theme selector |
-| `vx -cp` `vx --config-path` | Show config file location |
-| `-f` `--noconfirm` | Skip all confirmation prompts |
-| `-h` `--help` | Show help information |
-| `-v` `--version` | Display version information |
+| Command | Shorthand | Description |
+|---------|-----------|-------------|
+| `vx <files...>` | — | Move files/directories to cache |
+| `--restore <pattern>` | `-r` | Restore files matching pattern |
+| `--list` | `-l` | Show all cached files |
+| `--info <pattern>` | `-i` | Detailed info about items |
+| `--clear` | `-c` | Empty entire cache |
+| `--purge <days>` | `-pr` | Remove files older than N days |
+| `--stats` | `-s` | Display cache statistics |
+| `--path` | `-p` | Show cache directory location |
+| `--themes` | `-t` | Interactive theme browser |
+| `--config-path` | `-cp` | Show config file location |
+| `--noconfirm` | `-f` | Skip all confirmation prompts |
+| `--help` | `-h` | Show help information |
+| `--version` | `-v` | Display version |
 
-## 📊 Pattern Matching
+---
 
-Vanish supports powerful pattern matching for restoration:
+## 🎯 Pattern Matching Examples
+
+Vanish supports powerful glob patterns for precise file restoration:
 
 ```bash
-# Exact filename
+# Exact match
 vx --restore "document.pdf"
 
-# Wildcard patterns
-vx --restore "*.txt" "backup-*" "project-2024-*"
+# All text files
+vx --restore "*.txt"
 
-# Multiple patterns
+# Files starting with 'backup'
+vx --restore "backup-*"
+
+# Multiple patterns at once
 vx --restore "*.log" "config.*" "test-*"
+
+# Year-based restoration
+vx --restore "*-2024-*"
 ```
+
+---
 
 ## 🛡️ Safety Features
 
-- **Atomic Operations**: All moves are atomic to prevent data corruption
-- **Path Validation**: Comprehensive checks prevent cache conflicts
-- **Collision Detection**: Automatic handling of naming conflicts during restore
-- **Permission Preservation**: File permissions and ownership maintained
-- **Transaction Logging**: Complete audit trail of all operations
-- **Recovery Verification**: Integrity checks during restoration
+<table>
+<tr>
+<td width="50%">
 
-## 🚨 Important Notes
+✅ **Atomic Operations**
+Prevents data corruption during moves
 
-### ⚠️ Cache Directory Warning
-**Never manually modify the cache directory structure.** If you need to change the cache location, use the configuration file and run `vx --clear` to empty the old location first.
+✅ **Path Validation**
+Comprehensive conflict prevention
 
-### 🔒 Security Considerations
-- Cache files maintain original permissions
-- Vanish respects file system ACLs and extended attributes
-- Symbolic links are preserved but not followed during deletion
-- Hidden files require explicit specification (no accidental deletion)
+✅ **Collision Detection**
+Smart naming conflict resolution
+
+</td>
+<td width="50%">
+
+✅ **Permission Preservation**
+Maintains original file attributes
+
+✅ **Transaction Logging**
+Complete audit trail
+
+✅ **Integrity Checks**
+Verification during restoration
+
+</td>
+</tr>
+</table>
+
+---
+
+## ⚙️ Configuration
+
+Vanish uses **TOML** for easy, human-readable configuration. Customize cache location, retention policies, themes, and more.
+
+📚 **[View Full Configuration Guide →](https://github.com/Nurysso/vanish/blob/main/docs/configuration/condig.md)**
+
+```bash
+# Show config file location
+vx --config-path
+```
+
+---
+
+## ⚠️ Important Notes
+
+### Cache Directory Warning
+
+**Never manually modify the cache directory structure.** To change the cache location:
+
+1. Update the configuration file
+2. Run `vx --clear` to empty the old location
+3. Restart using the new location
+
+### Security Considerations
+
+- Original file permissions are preserved
+- Respects filesystem ACLs and extended attributes
+- Symbolic links preserved but not followed
+- Hidden files require explicit specification
+
+---
 
 ## 🤝 Contributing
 
-We welcome contributions!
-<!--  Please see our [Contributing Guide](CONTRIBUTING.md) for details. -->
+We welcome contributions of all kinds! Here's how to get started:
 
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/Notification`)
-3. Check for linting errors by running `make lint`
-3. Commit your changes (`git commit -m 'Added Notification Feature'`)
-4. Push to the branch (`git push origin feature/Notification`)
-5. Open a Pull Request
+1. **Fork** the repository
+2. **Create** your feature branch: `git checkout -b feature/AmazingFeature`
+3. **Lint** your code: `make lint`
+4. **Commit** your changes: `git commit -m 'Add AmazingFeature'`
+5. **Push** to the branch: `git push origin feature/AmazingFeature`
+6. **Open** a Pull Request
 
-## 🐛 Bug Reports & Feature Requests
+### Report Bugs or Request Features
 
-- **Bug Reports**: [GitHub Issues](https://github.com/Aelune/vanish/issues)
-- **Feature Requests**: [GitHub Discussions](https://github.com/Aelune/vanish/discussions)
+- 🐛 [Report a Bug](https://github.com/Nurysso/vanish/issues)
+- 💡 [Request a Feature](https://github.com/Nurysso/vanish/discussions)
 
-## 📄 License
+---
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+## [LICENSE](LICENSE).
 
-## 🙏 Acknowledgments
+---
 
-- Built with [Bubble Tea](https://github.com/charmbracelet/bubbletea) TUI framework
-- Styled with [Lip Gloss](https://github.com/charmbracelet/lipgloss)
+## Acknowledgments
+
+Built with using:
+
+- [Bubble Tea](https://github.com/charmbracelet/bubbletea) - Powerful TUI framework
+- [Lip Gloss](https://github.com/charmbracelet/lipgloss) - Beautiful terminal styling
 
 ---
 
 <div align="center">
 
-**[Homepage](https://dwukn.vercel.app/)** •
-**[Documentation](https://dwukn.vercel.app/)** •
-**[Releases](https://github.com/Aelune/vanish/releases)** •
-**[Discussions](https://github.com/Aelune/vanish/discussions)**
+### 🔗 Links
 
-Made with ❤️ by [Aelune](https://github.com/Aelune)
+**[Homepage](https://dwukn.vercel.app/)** • **[Documentation](https://dwukn.vercel.app/)** • **[Releases](https://github.com/Nurysso/vanish/releases)** • **[Discussions](https://github.com/Nurysso/vanish/discussions)**
+
+---
+
+Made with ❤️ by [Nurysso](https://github.com/Nurysso)
+
+⭐ **Star this repo if Vanish made your life easier!**
+
 </div>
