@@ -19,11 +19,8 @@
 
 <img src ="https://raw.githubusercontent.com/Nurysso/Hermes/main/vanish/vanish.gif" width="900">
 
-*Demo showing Vanish's TUI interface, file deletion, restoration, and theme customization*
-
 </div>
 
-> **Note:** Replace the video URL above with your actual demo video hosted on GitHub. Upload via Issues → New Issue → drag and drop the MP4 → copy the generated URL.
 
 ---
 
