@@ -16,6 +16,7 @@ type ParsedArgs struct {
 	Operation string
 	Filenames []string
 	NoConfirm bool
+	Headless  bool
 }
 
 // ParseArgs parses the command-line arguments and returns the operation, filenames, and flags
@@ -23,6 +24,7 @@ func ParseArgs(args []string, cfg types.Config) ParsedArgs {
 	var operation string
 	var filenames []string
 	var noConfirm bool
+	var headless bool
 
 	for i := 0; i < len(args); i++ {
 		arg := args[i]
@@ -57,6 +59,9 @@ func ParseArgs(args []string, cfg types.Config) ParsedArgs {
 			operation = "clear"
 			filenames = []string{""}
 		case "-f", "--noconfirm":
+			noConfirm = true
+		case "-q", "--quiet":
+			headless = true
 			noConfirm = true
 		case "-r", "--restore":
 			operation = "restore"
@@ -100,7 +105,9 @@ func ParseArgs(args []string, cfg types.Config) ParsedArgs {
 	if operation == "" && len(filenames) == 0 && len(args) > 0 {
 		operation = "delete"
 		for _, arg := range args {
-			if arg != "--noconfirm" {
+			if arg != "--noconfirm" && arg != "-f" &&
+			   arg != "--headless" && arg != "--no-tui" &&
+			   arg != "-q" && arg != "--quiet" {
 				filenames = append(filenames, arg)
 			}
 		}
@@ -110,6 +117,7 @@ func ParseArgs(args []string, cfg types.Config) ParsedArgs {
 		Operation: operation,
 		Filenames: filenames,
 		NoConfirm: noConfirm,
+		Headless:  headless,
 	}
 }
 

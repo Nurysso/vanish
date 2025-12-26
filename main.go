@@ -2,6 +2,7 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"os"
 
@@ -33,14 +34,23 @@ func main() {
 		}
 	}
 
-	// Initialize TUI
+	// Check if headless mode is enabled
+	if parsed.Headless {
+		// Run without TUI
+		if err := tui.ExecuteHeadless(parsed.Filenames, parsed.Operation, cfg); err != nil {
+			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+			os.Exit(1)
+		}
+		return
+	}
+
+	// Initialize and run TUI (normal mode)
 	m, err := tui.InitialModel(parsed.Filenames, parsed.Operation, parsed.NoConfirm)
 	if err != nil {
 		log.Fatalf("Error initializing: %v", err)
 	}
 
 	p := tea.NewProgram(m)
-
 	if _, err := p.Run(); err != nil {
 		log.Fatalf("Error running program: %v", err)
 	}

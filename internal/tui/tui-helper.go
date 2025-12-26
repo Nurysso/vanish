@@ -1,3 +1,4 @@
+// Package tui manages all the tui related code
 package tui
 
 import (
