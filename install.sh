@@ -9,10 +9,10 @@ BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
 # Repository information
-OWNER="Nurysoo"
+OWNER="Nurysso"
 REPO="vanish"
 BINARY_NAME="vx"
-DEFAULT_TAG="v0.9.2"
+DEFAULT_TAG="v0.9.3"
 
 # Use provided version or default
 VERSION="${1:-$DEFAULT_TAG}"
