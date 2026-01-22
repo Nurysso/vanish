@@ -322,7 +322,7 @@ func PurgeOldFiles(config types.Config, daysStr string) tea.Cmd {
 
 // CheckRestoreItems searches the index for deleted items that match
 // any of the given patterns (case-insensitive substring match).
-// Returns a tea.Msg containing the matched items.
+// Returns a tea.Msg containing the matched items with resolved paths.
 func CheckRestoreItems(patterns []string, config types.Config) tea.Cmd {
 	return func() tea.Msg {
 		index, err := LoadIndex(config)
@@ -335,12 +335,47 @@ func CheckRestoreItems(patterns []string, config types.Config) tea.Cmd {
 			for _, item := range index.Items {
 				// Simple pattern matching - check if pattern is contained in original path
 				if strings.Contains(strings.ToLower(item.OriginalPath), strings.ToLower(pattern)) {
-					matchingItems = append(matchingItems, item)
+					// Resolve conflicts for the restore path
+					resolvedItem := item
+					resolvedItem.OriginalPath = resolvePathConflict(item.OriginalPath)
+					matchingItems = append(matchingItems, resolvedItem)
 				}
 			}
 		}
 
 		return types.RestoreItemsMsg{Items: matchingItems}
+	}
+}
+
+// resolvePathConflict checks if a path exists and appends a number if needed.
+// For example: test -> test1 -> test2, etc.
+func resolvePathConflict(originalPath string) string {
+	// If no conflict, return original path
+	if _, err := os.Stat(originalPath); os.IsNotExist(err) {
+		return originalPath
+	}
+
+	// Extract directory, base name, and extension
+	dir := filepath.Dir(originalPath)
+	base := filepath.Base(originalPath)
+	ext := filepath.Ext(base)
+	nameWithoutExt := strings.TrimSuffix(base, ext)
+
+	// Try appending numbers until we find a non-existent path
+	counter := 1
+	for {
+		var newName string
+		if ext != "" {
+			newName = fmt.Sprintf("%s%d%s", nameWithoutExt, counter, ext)
+		} else {
+			newName = fmt.Sprintf("%s%d", nameWithoutExt, counter)
+		}
+
+		newPath := filepath.Join(dir, newName)
+		if _, err := os.Stat(newPath); os.IsNotExist(err) {
+			return newPath
+		}
+		counter++
 	}
 }
 
