@@ -1,19 +1,15 @@
 # Maintainer: Dawood <Nurysso at proton.me>
-
-# DONT USE THIS TO INSTALL VANISH IN SYSTEM USE paru/yay -S vanish
-# this script wont be updated and will cause issues
-# if want to download manually then go for make install or go build and put in path
 pkgname=vanish
-pkgver=0.9.2
+pkgver=0.9.4
 pkgrel=1
 pkgdesc="Modern safe file deletion tool with recovery - Never lose files again! Beautiful TUI, pattern restore, themes."
 arch=('x86_64' 'aarch64')
 url="https://github.com/nurysso/vanish"
-license=('MIT')
+license=('GPL3')
 depends=()
-makedepends=('go' 'make')
+makedepends=('go')
 source=("$pkgname-$pkgver.tar.gz::https://github.com/nurysso/$pkgname/archive/v$pkgver.tar.gz")
-sha256sums=('8f19dfdc3c3612ab0a98b5fd3be77975022ee036caa8172548ec88e9c6251db3')
+sha256sums=('37099ffb3fa07f893b261af4c84a7f2c562a02a4775ad9a24a78845faf9d6166')
 
 prepare() {
     cd "$srcdir/$pkgname-$pkgver"
@@ -39,7 +35,7 @@ package() {
     # Note: We don't use 'make install' because it installs to /usr/local/bin
     # and PKGBUILD needs to install to $pkgdir for package manager tracking
     # The binary will be in build/bin/
-        install -Dm755 vx "$pkgdir/usr/bin/vx"
+    install -Dm755 vx "$pkgdir/usr/bin/vx"
 
     # Install license
     install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"

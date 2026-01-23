@@ -12,7 +12,7 @@ NC='\033[0m' # No Color
 OWNER="Nurysso"
 REPO="vanish"
 BINARY_NAME="vx"
-DEFAULT_TAG="v0.9.3"
+DEFAULT_TAG="v0.9.4"
 
 # Use provided version or default
 VERSION="${1:-$DEFAULT_TAG}"
@@ -27,7 +27,7 @@ echo -e "${BLUE}================${NC}"
 OS=$(uname -s | tr '[:upper:]' '[:lower:]')
 case "$OS" in
     linux*) OS="linux" ;;
-    darwin*) OS="darwin" ;;
+    darwin*) OS="macos" ;;
     mingw*|msys*|cygwin*) OS="windows" ;;
     *)
         echo -e "${RED}❌ Unsupported operating system: $OS${NC}"
@@ -38,10 +38,9 @@ esac
 # Detect architecture
 ARCH=$(uname -m)
 case "$ARCH" in
-    x86_64) ARCH="amd64" ;;
-    aarch64|arm64) ARCH="arm64" ;;
+    x86_64) ARCH="x86_64" ;;
+    aarch64|arm64) ARCH="aarch64" ;;
     armv7l) ARCH="arm" ;;
-    i386|i686) ARCH="386" ;;
     *)
         echo -e "${RED}❌ Unsupported architecture: $ARCH${NC}"
         exit 1
