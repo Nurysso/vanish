@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (C) 2026 Dawood Khan
+
 // Package helpers have all the helper function.
 package helpers
 

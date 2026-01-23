@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (C) 2026 Dawood Khan
+
 // Package command is responsibe for parsing command line args and perform operations based on args
 package command
 
@@ -106,8 +109,8 @@ func ParseArgs(args []string, cfg types.Config) ParsedArgs {
 		operation = "delete"
 		for _, arg := range args {
 			if arg != "--noconfirm" && arg != "-f" &&
-			   arg != "--headless" && arg != "--no-tui" &&
-			   arg != "-q" && arg != "--quiet" {
+				arg != "--headless" && arg != "--no-tui" &&
+				arg != "-q" && arg != "--quiet" {
 				filenames = append(filenames, arg)
 			}
 		}

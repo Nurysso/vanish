@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (C) 2026 Dawood Khan
+
 // Package tui manages all the tui related code
 package tui
 
@@ -379,13 +382,13 @@ func restoreFromCache(item types.DeletedItem, config types.Config) tea.Cmd {
 				if err := os.MkdirAll(logDir, 0755); err == nil {
 					logPath := filepath.Join(logDir, "vanish.log")
 					if logFile, err := os.OpenFile(logPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644); err == nil {
-	defer logFile.Close()
+						defer logFile.Close()
 
-	if _, err := logFile.WriteString(fmt.Sprintf("%s ERROR Failed to remove from index: %s\n",
-		time.Now().Format("2006-01-02 15:04:05"), item.ID)); err != nil {
-		fmt.Fprintf(os.Stderr, "Failed to write to log file: %v\n", err)
-	}
-}
+						if _, err := logFile.WriteString(fmt.Sprintf("%s ERROR Failed to remove from index: %s\n",
+							time.Now().Format("2006-01-02 15:04:05"), item.ID)); err != nil {
+							fmt.Fprintf(os.Stderr, "Failed to write to log file: %v\n", err)
+						}
+					}
 
 				}
 			}

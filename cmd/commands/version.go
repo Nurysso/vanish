@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (C) 2026 Dawood Khan
+
 package command
 
 import (
@@ -6,8 +9,8 @@ import (
 
 // Version information
 const (
-	VERSION = "0.9.3"
-	NAME = "ares-cinnamon"
+	VERSION = "0.9.4"
+	NAME    = "mars-chili"
 	//AUTHOR = "Nurysoo"
 )
 

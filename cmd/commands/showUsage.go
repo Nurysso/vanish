@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (C) 2026 Dawood Khan
+
 package command
 
 import (
@@ -155,7 +158,6 @@ func ShowUsage(config types.Config) {
 
 	fmt.Println(footerStyle.Render("For more information: https://github.com/Nurysoo/vanish"))
 }
-
 
 // ShowUsageFallback is a alternative fallback to simple output if colors are not available
 func ShowUsageFallback(config types.Config) {

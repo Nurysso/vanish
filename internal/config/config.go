@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (C) 2026 Dawood Khan
+
 // Package config manages all config related code
 package config
 
@@ -181,7 +184,7 @@ days = 10
 # Logging Configuration
 # ------------------------------
 [logging]
-# Enable or disable logging (true/false) 
+# Enable or disable logging (true/false)
 enabled = true
 
 # Directory for log files (relative to the cache directory above)

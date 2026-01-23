@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (C) 2026 Dawood Khan
+
 package helpers
 
 import (
@@ -37,14 +40,8 @@ func MoveSymlink(src, dst string) error {
 	return nil
 }
 
-
-
-
-
 // CopyDirectory recursively copies the contents of the source directory to the
 // destination directory. Preserves file and directory modes, and handles symlinks.
-
-
 
 // GetFileInfo returns detailed information about a file, including whether it's a symlink
 func GetFileInfo(path string) (os.FileInfo, bool, error) {

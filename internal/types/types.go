@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (C) 2026 Dawood Khan
+
 // Package types contains all the shared types used across the Vanish (vx) application.
 // It excludes TUI-specific models defined in the tui package.
 package types
