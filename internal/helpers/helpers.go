@@ -3,11 +3,13 @@ package helpers
 
 import (
 	"fmt"
+	"io"
+
 	"github.com/charmbracelet/bubbles/progress"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"golang.org/x/term"
-	"io"
+
 	// "log"
 	"os"
 	// "os/exec"
@@ -236,33 +238,26 @@ func ClearAllCache(config types.Config) tea.Cmd {
 
 		// Remove all files in cache directory
 		if err := os.RemoveAll(cacheDir); err != nil {
-			return types.ClearMsg{Err: err}
+			return types.ClearMsg{Err: fmt.Errorf("failed to remove cache directory: %w", err)}
 		}
 
 		// Recreate cache directory
 		if err := os.MkdirAll(cacheDir, 0755); err != nil {
-			return types.ClearMsg{Err: err}
+			return types.ClearMsg{Err: fmt.Errorf("failed to recreate cache directory: %w", err)}
 		}
 
 		// Create empty index
 		index := types.Index{Items: []types.DeletedItem{}}
 		if err := SaveIndex(index, config); err != nil {
-			return types.ClearMsg{Err: err}
+			return types.ClearMsg{Err: fmt.Errorf("failed to save index: %w", err)}
 		}
 
 		// Log clear operation
 		if config.Logging.Enabled {
-			logDir := ExpandPath(config.Logging.Directory)
-			if err := os.MkdirAll(logDir, 0755); err != nil {
-				return types.ClearMsg{Err: err}
-			}
-			logPath := filepath.Join(logDir, "vanish.log")
-			logFile, err := os.OpenFile(logPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-			if err == nil {
-				defer logFile.Close()
-				if _, err := logFile.WriteString(fmt.Sprintf("%s CLEAR_ALL Cache cleared\n", time.Now().Format("2006-01-02 15:04:05"))); err != nil {
-					return types.ClearMsg{Err: err}
-				}
+			if err := logClearOperation(config); err != nil {
+				// Log error but don't fail the entire operation
+				// since the cache was successfully cleared
+				return types.ClearMsg{Err: fmt.Errorf("cache cleared but logging failed: %w", err)}
 			}
 		}
 
@@ -280,43 +275,73 @@ func PurgeOldFiles(config types.Config, daysStr string) tea.Cmd {
 			return types.PurgeMsg{Err: fmt.Errorf("invalid days value: %s", daysStr)}
 		}
 
+		// Validate days is positive
+		if days <= 0 {
+			return types.PurgeMsg{Err: fmt.Errorf("days must be positive, got: %d", days)}
+		}
+
 		cutoffDays := time.Duration(days) * 24 * time.Hour
 		cutoff := time.Now().Add(-cutoffDays)
 
 		index, err := LoadIndex(config)
 		if err != nil {
-			return types.PurgeMsg{Err: fmt.Errorf("error loading index: %v", err)}
+			return types.PurgeMsg{Err: fmt.Errorf("error loading index: %w", err)}
 		}
 
-		var remainingItems []types.DeletedItem
+		// Pre-allocate slice with estimated capacity
+		remainingItems := make([]types.DeletedItem, 0, len(index.Items))
 		purgedCount := 0
+		var purgeErrors []error
 
 		for _, item := range index.Items {
 			if item.DeleteDate.Before(cutoff) {
 				// Remove the actual file or directory
+				var removeErr error
 				if item.IsDirectory {
-					os.RemoveAll(item.CachePath)
+					removeErr = os.RemoveAll(item.CachePath)
 				} else {
-					os.Remove(item.CachePath)
+					removeErr = os.Remove(item.CachePath)
 				}
+
+				// Track errors but continue purging other files
+				if removeErr != nil && !os.IsNotExist(removeErr) {
+					purgeErrors = append(purgeErrors, fmt.Errorf("failed to remove %s: %w", item.CachePath, removeErr))
+					// Keep item in index if we couldn't remove it
+					remainingItems = append(remainingItems, item)
+					continue
+				}
+
 				purgedCount++
 
 				// Log purge
 				if config.Logging.Enabled {
-					LogOperation("PURGE", item, config)
+					if err := LogOperation("PURGE", item, config); err != nil {
+						// Log error but don't fail the operation
+						purgeErrors = append(purgeErrors, fmt.Errorf("failed to log purge of %s: %w", item.OriginalPath, err))
+					}
 				}
 			} else {
 				remainingItems = append(remainingItems, item)
 			}
 		}
 
-		// Update index
+		// Update index with remaining items
 		index.Items = remainingItems
 		if err := SaveIndex(index, config); err != nil {
-			return types.PurgeMsg{Err: fmt.Errorf("error updating index: %v", err)}
+			return types.PurgeMsg{Err: fmt.Errorf("error updating index: %w", err)}
 		}
 
-		return types.PurgeMsg{PurgedCount: purgedCount, Err: nil}
+		// Return combined error if any occurred
+		var finalErr error
+		if len(purgeErrors) > 0 {
+			errMsgs := make([]string, len(purgeErrors))
+			for i, err := range purgeErrors {
+				errMsgs[i] = err.Error()
+			}
+			finalErr = fmt.Errorf("purge completed with errors: %s", strings.Join(errMsgs, "; "))
+		}
+
+		return types.PurgeMsg{PurgedCount: purgedCount, Err: finalErr}
 	}
 }
 
