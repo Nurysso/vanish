@@ -9,7 +9,7 @@ import (
 
 // Version information
 const (
-	VERSION = "0.9.4"
+	VERSION = "0.9.5"
 	NAME    = "mars-chili"
 	//AUTHOR = "Nurysoo"
 )
