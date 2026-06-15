@@ -2,6 +2,7 @@
 // Copyright (C) 2026 Dawood Khan
 
 // Package helpers have all the helper function.
+
 package helpers
 
 import (
@@ -24,13 +25,22 @@ import (
 	"vanish/internal/types"
 )
 
-// GetConfigPath returns path to vanish.toml
+// GetConfigPath returns the path to vanish.toml. It prefers
+// os.UserConfigDir() (which respects XDG_CONFIG_HOME on Linux), and
+// falls back to $HOME/.config if that's unavailable, and finally to a
+// directory relative to the working directory if neither can be
+// resolved. It never returns a non-path placeholder string.
 func GetConfigPath() string {
-	homeDir, err := os.UserHomeDir()
-	if err != nil {
-		return "could find Config File"
+	configDir, err := os.UserConfigDir()
+	if err != nil || configDir == "" {
+		homeDir, herr := os.UserHomeDir()
+		if herr != nil || homeDir == "" {
+			// Last resort: relative to the current working directory.
+			return filepath.Join(".", "vanish", "vanish.toml")
+		}
+		configDir = filepath.Join(homeDir, ".config")
 	}
-	return filepath.Join(homeDir, ".config", "vanish", "vanish.toml")
+	return filepath.Join(configDir, "vanish", "vanish.toml")
 }
 
 // FormatBytes formats bytes and is used in
@@ -204,33 +214,30 @@ func GetTerminalSize() (int, int) {
 
 // ExpandPath expands a given path by resolving '~/' to the user's home directory
 // and converting relative paths to absolute paths. If the path is already absolute,
-// it is returned unchanged.
+// it is returned unchanged. If the home directory cannot be resolved, the path is
+// returned unchanged (for "~/" paths) or made absolute relative to the working
+// directory (for other relative paths), rather than silently producing a path
+// rooted at an empty string.
 func ExpandPath(path string) string {
 	if strings.HasPrefix(path, "~/") {
-		homeDir, _ := os.UserHomeDir()
+		homeDir, err := os.UserHomeDir()
+		if err != nil || homeDir == "" {
+			return path
+		}
 		return filepath.Join(homeDir, path[2:])
 	}
 	if !filepath.IsAbs(path) {
-		homeDir, _ := os.UserHomeDir()
+		homeDir, err := os.UserHomeDir()
+		if err != nil || homeDir == "" {
+			if abs, aerr := filepath.Abs(path); aerr == nil {
+				return abs
+			}
+			return path
+		}
 		return filepath.Join(homeDir, path)
 	}
 	return path
 }
-
-// INIT()
-
-// validatePath checks if a path is valid and accessible
-//func validatePath(path string) error {
-//	// Use Lstat to check without following symlinks
-//	_, err := os.Lstat(path)
-//	if err != nil {
-//		if os.IsNotExist(err) {
-//			return fmt.Errorf("path does not exist: %s", path)
-//		}
-//		return fmt.Errorf("cannot access path: %v", err)
-//	}
-//	return nil
-//}
 
 // ClearAllCache removes all cached files and directories, recreates the
 // cache directory, resets the index, and logs the operation if logging
@@ -240,7 +247,7 @@ func ClearAllCache(config types.Config) tea.Cmd {
 		cacheDir := ExpandPath(config.Cache.Directory)
 
 		// Remove all files in cache directory
-		if err := os.RemoveAll(cacheDir); err != nil {
+		if err := RemoveAllWritable(cacheDir); err != nil {
 			return types.ClearMsg{Err: fmt.Errorf("failed to remove cache directory: %w", err)}
 		}
 
@@ -301,7 +308,7 @@ func PurgeOldFiles(config types.Config, daysStr string) tea.Cmd {
 				// Remove the actual file or directory
 				var removeErr error
 				if item.IsDirectory {
-					removeErr = os.RemoveAll(item.CachePath)
+					removeErr = RemoveAllWritable(item.CachePath)
 				} else {
 					removeErr = os.Remove(item.CachePath)
 				}
@@ -443,16 +450,20 @@ func CheckFilesExist(filenames []string) tea.Cmd {
 	}
 }
 
-// CountFilesInDirectory returns the number of files (not including directories)
-// in the specified directory and its subdirectories. Errors during walking
-// the directory tree are ignored.
+// CountFilesInDirectory returns the number of regular files (not including
+// directories themselves) in the specified directory and its subdirectories.
+// Errors encountered while walking the tree are ignored for individual
+// entries (e.g. permission errors), but the entry itself is skipped.
 func CountFilesInDirectory(dir string) (int, error) {
 	count := 0
-	err := filepath.Walk(dir, func(path string, _ os.FileInfo, err error) error {
+	err := filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
-			return nil // skips problematic files
+			return nil // skip problematic files
 		}
-		if path != dir {
+		if path == dir {
+			return nil
+		}
+		if !info.IsDir() {
 			count++
 		}
 		return nil
@@ -547,12 +558,35 @@ func MoveDirectory(src, dst string) error {
 		return err
 	}
 
-	return os.RemoveAll(src)
+	return RemoveAllWritable(src)
+}
+
+// RemoveAllWritable removes the file or directory tree at path, first
+// walking it to add the owner-write bit to any directory that's missing it.
+// os.RemoveAll requires write+execute permission on a directory to unlink
+// its children, and read-only trees - such as Go's module cache, which
+// chmods directories to dr-xr-xr-x - would otherwise fail partway through
+// with "permission denied". Read-only directories can still be walked
+// since the execute bit (needed to list contents) is normally present.
+func RemoveAllWritable(path string) error {
+	_ = filepath.Walk(path, func(p string, info os.FileInfo, err error) error {
+		if err != nil {
+			// Can't stat this entry; let RemoveAll surface the error.
+			return nil
+		}
+		if info.IsDir() && info.Mode()&0200 == 0 {
+			if chmodErr := os.Chmod(p, info.Mode()|0700); chmodErr != nil {
+				return chmodErr
+			}
+		}
+		return nil
+	})
+	return os.RemoveAll(path)
 }
 
 // CopyDirectory recursively copies the contents of the source directory to the
-// destination directory. Preserves file and directory modes. Returns an error
-// if any operation fails.
+// destination directory. Preserves file and directory modes and modification
+// times. Returns an error if any operation fails.
 func CopyDirectory(src, dst string) error {
 	// Use Lstat to not follow symlinks when checking source
 	srcInfo, err := os.Lstat(src)
@@ -602,11 +636,19 @@ func CopyDirectory(src, dst string) error {
 		}
 	}
 
+	// Preserve the directory's modification time. This must happen after
+	// all entries have been written, since creating entries inside dst
+	// updates dst's mtime.
+	modTime := srcInfo.ModTime()
+	if err := os.Chtimes(dst, modTime, modTime); err != nil {
+		return fmt.Errorf("failed to preserve mod time for directory %s: %w", dst, err)
+	}
+
 	return nil
 }
 
-// CopyFile copies a file from src to dst, preserving its permissions.
-// Returns an error if opening, copying, or creating fails.
+// CopyFile copies a file from src to dst, preserving its permissions and
+// modification time. Returns an error if opening, copying, or creating fails.
 // Does not follow symlinks - use MoveSymlink for that.
 func CopyFile(src, dst string) error {
 	srcFile, err := os.Open(src)
@@ -630,8 +672,18 @@ func CopyFile(src, dst string) error {
 		return err
 	}
 
-	_, err = io.Copy(dstFile, srcFile)
-	return err
+	if _, err := io.Copy(dstFile, srcFile); err != nil {
+		return err
+	}
+
+	// Preserve modification time so restored/copied files don't appear
+	// to have been created "now".
+	modTime := srcInfo.ModTime()
+	if err := os.Chtimes(dst, modTime, modTime); err != nil {
+		return fmt.Errorf("failed to preserve mod time for %s: %w", dst, err)
+	}
+
+	return nil
 }
 
 // GetDirectorySize returns the total size in bytes of all non-directory
