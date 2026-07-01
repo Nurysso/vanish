@@ -1,18 +1,16 @@
-// SPDX-License-Identifier: GPL-3.0-or-later
-// Copyright (C) 2026 Dawood Khan
-
-package helpers
+package tests
 
 import (
 	"os"
 	"path/filepath"
 	"testing"
 	"time"
+	h "vanish/internal/helpers"
 	"vanish/internal/types"
 )
 
 func TestGetConfigPath(t *testing.T) {
-	path := GetConfigPath()
+	path := h.GetConfigPath()
 	if path == "" || path == "could find Config File" {
 		t.Error("GetConfigPath returned empty or error string")
 	}
@@ -39,7 +37,7 @@ func TestFormatBytes(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := FormatBytes(tt.bytes)
+			result := h.FormatBytes(tt.bytes)
 			if result != tt.expected {
 				t.Errorf("FormatBytes(%d) = %s; expected %s", tt.bytes, result, tt.expected)
 			}
@@ -49,7 +47,7 @@ func TestFormatBytes(t *testing.T) {
 
 func TestCreateThemeStyles(t *testing.T) {
 	config := getTestConfig()
-	styles := CreateThemeStyles(config)
+	styles := h.CreateThemeStyles(config)
 
 	// Check that styles are created (non-nil check through String() method)
 	if styles.Title.String() == "" {
@@ -65,7 +63,7 @@ func TestCreateThemeStyles(t *testing.T) {
 
 func TestRenderThemeAsString(t *testing.T) {
 	config := getTestConfig()
-	result := RenderThemeAsString(config)
+	result := h.RenderThemeAsString(config)
 
 	if result == "" {
 		t.Error("RenderThemeAsString returned empty string")
@@ -76,7 +74,7 @@ func TestRenderThemeAsString(t *testing.T) {
 }
 
 func TestGetTerminalSize(t *testing.T) {
-	width, height := GetTerminalSize()
+	width, height := h.GetTerminalSize()
 
 	// Should return fallback values or actual terminal size
 	if width <= 0 || height <= 0 {
@@ -104,7 +102,7 @@ func TestExpandPath(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := ExpandPath(tt.input)
+			result := h.ExpandPath(tt.input)
 			if result != tt.expected {
 				t.Errorf("ExpandPath(%s) = %s; expected %s", tt.input, result, tt.expected)
 			}
@@ -122,14 +120,15 @@ func TestCountFilesInDirectory(t *testing.T) {
 	os.Mkdir(filepath.Join(tmpDir, "subdir"), 0755)
 	os.Create(filepath.Join(tmpDir, "subdir", "file3.txt"))
 
-	count, err := CountFilesInDirectory(tmpDir)
+	count, err := h.CountFilesInDirectory(tmpDir)
 	if err != nil {
 		t.Fatalf("CountFilesInDirectory failed: %v", err)
 	}
 
-	// Should count 2 files + 1 subdir + 1 file in subdir = 4
-	if count != 4 {
-		t.Errorf("Expected 4 items, got %d", count)
+	// Should count 3 files (file1.txt, file2.txt, subdir/file3.txt)
+	// The subdir itself is not counted because it's a directory
+	if count != 3 {
+		t.Errorf("Expected 3 files, got %d", count)
 	}
 }
 
@@ -142,7 +141,7 @@ func TestCountValidFiles(t *testing.T) {
 		{Path: "test5", Exists: true},
 	}
 
-	count := CountValidFiles(fileInfos)
+	count := h.CountValidFiles(fileInfos)
 	if count != 3 {
 		t.Errorf("Expected 3 valid files, got %d", count)
 	}
@@ -169,7 +168,7 @@ func TestFindNextValidFile(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := FindNextValidFile(fileInfos, tt.startIndex)
+			result := h.FindNextValidFile(fileInfos, tt.startIndex)
 			if result != tt.expected {
 				t.Errorf("FindNextValidFile(%d) = %d; expected %d", tt.startIndex, result, tt.expected)
 			}
@@ -190,7 +189,7 @@ func TestMoveFile(t *testing.T) {
 	}
 
 	// Move file
-	if err := MoveFile(srcPath, dstPath); err != nil {
+	if err := h.MoveFile(srcPath, dstPath); err != nil {
 		t.Fatalf("MoveFile failed: %v", err)
 	}
 
@@ -222,7 +221,7 @@ func TestCopyFile(t *testing.T) {
 	}
 
 	// Copy file
-	if err := CopyFile(srcPath, dstPath); err != nil {
+	if err := h.CopyFile(srcPath, dstPath); err != nil {
 		t.Fatalf("CopyFile failed: %v", err)
 	}
 
@@ -253,7 +252,7 @@ func TestCopyDirectory(t *testing.T) {
 	os.WriteFile(filepath.Join(srcDir, "subdir", "file2.txt"), []byte("content2"), 0644)
 
 	// Copy directory
-	if err := CopyDirectory(srcDir, dstDir); err != nil {
+	if err := h.CopyDirectory(srcDir, dstDir); err != nil {
 		t.Fatalf("CopyDirectory failed: %v", err)
 	}
 
@@ -277,7 +276,7 @@ func TestMoveDirectory(t *testing.T) {
 	os.WriteFile(filepath.Join(srcDir, "file.txt"), []byte("content"), 0644)
 
 	// Move directory
-	if err := MoveDirectory(srcDir, dstDir); err != nil {
+	if err := h.MoveDirectory(srcDir, dstDir); err != nil {
 		t.Fatalf("MoveDirectory failed: %v", err)
 	}
 
@@ -301,7 +300,7 @@ func TestGetDirectorySize(t *testing.T) {
 	os.Mkdir(filepath.Join(tmpDir, "subdir"), 0755)
 	os.WriteFile(filepath.Join(tmpDir, "subdir", "file3.txt"), []byte("123"), 0644) // 3 bytes
 
-	size, err := GetDirectorySize(tmpDir)
+	size, err := h.GetDirectorySize(tmpDir)
 	if err != nil {
 		t.Fatalf("GetDirectorySize failed: %v", err)
 	}
@@ -325,7 +324,7 @@ func TestCheckFilesExist(t *testing.T) {
 
 	nonExistingFile := filepath.Join(tmpDir, "not_exists.txt")
 
-	cmd := CheckFilesExist([]string{existingFile, existingDir, nonExistingFile})
+	cmd := h.CheckFilesExist([]string{existingFile, existingDir, nonExistingFile})
 	msg := cmd()
 
 	filesMsg, ok := msg.(types.FilesExistMsg)
@@ -391,12 +390,12 @@ func TestLoadAndSaveIndex(t *testing.T) {
 	}
 
 	// Save index
-	if err := SaveIndex(testIndex, config); err != nil {
+	if err := h.SaveIndex(testIndex, config); err != nil {
 		t.Fatalf("SaveIndex failed: %v", err)
 	}
 
 	// Load index
-	loadedIndex, err := LoadIndex(config)
+	loadedIndex, err := h.LoadIndex(config)
 	if err != nil {
 		t.Fatalf("LoadIndex failed: %v", err)
 	}
@@ -431,9 +430,9 @@ func TestClearAllCache(t *testing.T) {
 			{ID: "test", CachePath: filepath.Join(tmpDir, "test.txt")},
 		},
 	}
-	SaveIndex(index, config)
+	h.SaveIndex(index, config)
 
-	cmd := ClearAllCache(config)
+	cmd := h.ClearAllCache(config)
 	msg := cmd()
 
 	clearMsg, ok := msg.(types.ClearMsg)
@@ -446,7 +445,7 @@ func TestClearAllCache(t *testing.T) {
 	}
 
 	// Verify index is empty
-	loadedIndex, _ := LoadIndex(config)
+	loadedIndex, _ := h.LoadIndex(config)
 	if len(loadedIndex.Items) != 0 {
 		t.Errorf("Expected empty index, got %d items", len(loadedIndex.Items))
 	}
@@ -474,9 +473,9 @@ func TestPurgeOldFiles(t *testing.T) {
 			{ID: "new", CachePath: newFile, DeleteDate: newTime, IsDirectory: false},
 		},
 	}
-	SaveIndex(index, config)
+	h.SaveIndex(index, config)
 
-	cmd := PurgeOldFiles(config, "7")
+	cmd := h.PurgeOldFiles(config, "7")
 	msg := cmd()
 
 	purgeMsg, ok := msg.(types.PurgeMsg)
@@ -517,9 +516,9 @@ func TestCheckRestoreItems(t *testing.T) {
 			{ID: "3", OriginalPath: "/home/user/report.pdf", CachePath: filepath.Join(tmpDir, "report1")},
 		},
 	}
-	SaveIndex(index, config)
+	h.SaveIndex(index, config)
 
-	cmd := CheckRestoreItems([]string{"document"}, config)
+	cmd := h.CheckRestoreItems([]string{"document"}, config)
 	msg := cmd()
 
 	restoreMsg, ok := msg.(types.RestoreItemsMsg)
