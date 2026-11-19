@@ -68,12 +68,21 @@ func ParseArgs(args []string, cfg types.Config) ParsedArgs {
 			noConfirm = true
 		case "-r", "--restore":
 			operation = "restore"
-			if i+1 < len(args) {
-				filenames = args[i+1:]
-				i = len(args) // consume remaining args
-			} else {
+			for _, rest := range args[i+1:] {
+				switch rest {
+				case "-f", "--noconfirm":
+					noConfirm = true
+				case "-q", "--quiet":
+					headless = true
+					noConfirm = true
+				default:
+					filenames = append(filenames, rest)
+				}
+			}
+			if len(filenames) == 0 {
 				log.Fatal("Error: --restore requires at least one pattern")
 			}
+			i = len(args) // consume remaining args
 		case "-i", "--info":
 			if i+1 < len(args) {
 				if err := ShowInfo(args[i+1], cfg); err != nil {

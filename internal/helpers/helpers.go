@@ -6,6 +6,7 @@
 package helpers
 
 import (
+	"errors"
 	"fmt"
 	"io"
 
@@ -21,6 +22,7 @@ import (
 	// "runtime"
 	"strconv"
 	"strings"
+	"syscall"
 	"time"
 	"vanish/internal/types"
 )
@@ -290,74 +292,86 @@ func PurgeOldFiles(config types.Config, daysStr string) tea.Cmd {
 			return types.PurgeMsg{Err: fmt.Errorf("days must be positive, got: %d", days)}
 		}
 
-		cutoffDays := time.Duration(days) * 24 * time.Hour
-		cutoff := time.Now().Add(-cutoffDays)
-
-		index, err := LoadIndex(config)
-		if err != nil {
-			return types.PurgeMsg{Err: fmt.Errorf("error loading index: %w", err)}
-		}
-
-		// Pre-allocate slice with estimated capacity
-		remainingItems := make([]types.DeletedItem, 0, len(index.Items))
-		purgedCount := 0
-		var purgeErrors []error
-
-		for _, item := range index.Items {
-			if item.DeleteDate.Before(cutoff) {
-				// Remove the actual file or directory
-				var removeErr error
-				if item.IsDirectory {
-					removeErr = RemoveAllWritable(item.CachePath)
-				} else {
-					removeErr = os.Remove(item.CachePath)
-				}
-
-				// Track errors but continue purging other files
-				if removeErr != nil && !os.IsNotExist(removeErr) {
-					purgeErrors = append(purgeErrors, fmt.Errorf("failed to remove %s: %w", item.CachePath, removeErr))
-					// Keep item in index if we couldn't remove it
-					remainingItems = append(remainingItems, item)
-					continue
-				}
-
-				purgedCount++
-
-				// Log purge
-				if config.Logging.Enabled {
-					if err := LogOperation("PURGE", item, config); err != nil {
-						// Log error but don't fail the operation
-						purgeErrors = append(purgeErrors, fmt.Errorf("failed to log purge of %s: %w", item.OriginalPath, err))
-					}
-				}
-			} else {
-				remainingItems = append(remainingItems, item)
-			}
-		}
-
-		// Update index with remaining items
-		index.Items = remainingItems
-		if err := SaveIndex(index, config); err != nil {
-			return types.PurgeMsg{Err: fmt.Errorf("error updating index: %w", err)}
-		}
-
-		// Return combined error if any occurred
-		var finalErr error
-		if len(purgeErrors) > 0 {
-			errMsgs := make([]string, len(purgeErrors))
-			for i, err := range purgeErrors {
-				errMsgs[i] = err.Error()
-			}
-			finalErr = fmt.Errorf("purge completed with errors: %s", strings.Join(errMsgs, "; "))
-		}
-
-		return types.PurgeMsg{PurgedCount: purgedCount, Err: finalErr}
+		purged, err := purgeBefore(daysAgo(days), "PURGE", config)
+		return types.PurgeMsg{PurgedCount: purged, Err: err}
 	}
 }
 
-// CheckRestoreItems searches the index for deleted items that match
-// any of the given patterns (case-insensitive substring match).
-// Returns a tea.Msg containing the matched items with resolved paths.
+// daysAgo returns the cutoff for a retention period. The cap stops a huge value
+// overflowing into a future date, which would make every item look expired.
+func daysAgo(days int) time.Time {
+	const maxDays = 1_000_000 // about 2,700 years, older than any deleted item
+	return time.Now().AddDate(0, 0, -min(days, maxDays))
+}
+
+// CleanupExpired removes items older than the configured retention period.
+// A non-positive retention never expires anything, because treating it as a
+// cutoff would permanently delete the whole trash, including the file just moved.
+func CleanupExpired(config types.Config) (int, error) {
+	if config.Cache.Days <= 0 {
+		return 0, nil
+	}
+	return purgeBefore(daysAgo(config.Cache.Days), "CLEANUP", config)
+}
+
+// purgeBefore permanently removes items deleted before cutoff and logs each one
+// under the given operation name. An item that can't be removed stays in the
+// index. Returns the number removed and any combined error.
+func purgeBefore(cutoff time.Time, operation string, config types.Config) (int, error) {
+	index, err := LoadIndex(config)
+	if err != nil {
+		return 0, fmt.Errorf("error loading index: %w", err)
+	}
+
+	// Pre-allocate slice with estimated capacity
+	remainingItems := make([]types.DeletedItem, 0, len(index.Items))
+	purgedCount := 0
+	var purgeErrors []error
+
+	for _, item := range index.Items {
+		if !item.DeleteDate.Before(cutoff) {
+			remainingItems = append(remainingItems, item)
+			continue
+		}
+
+		// Remove the actual file or directory
+		var removeErr error
+		if item.IsDirectory {
+			removeErr = RemoveAllWritable(item.CachePath)
+		} else {
+			removeErr = os.Remove(item.CachePath)
+		}
+
+		// Track errors but continue purging other files
+		if removeErr != nil && !os.IsNotExist(removeErr) {
+			purgeErrors = append(purgeErrors, fmt.Errorf("failed to remove %s: %w", item.CachePath, removeErr))
+			// Keep item in index if we couldn't remove it
+			remainingItems = append(remainingItems, item)
+			continue
+		}
+
+		purgedCount++
+
+		if config.Logging.Enabled {
+			if err := LogOperation(operation, item, config); err != nil {
+				// Log error but don't fail the operation
+				purgeErrors = append(purgeErrors, fmt.Errorf("failed to log removal of %s: %w", item.OriginalPath, err))
+			}
+		}
+	}
+
+	// Update index with remaining items
+	index.Items = remainingItems
+	if err := SaveIndex(index, config); err != nil {
+		return purgedCount, fmt.Errorf("error updating index: %w", err)
+	}
+
+	return purgedCount, errors.Join(purgeErrors...)
+}
+
+// CheckRestoreItems searches the index for deleted items that match any of the
+// given patterns (see matchesPattern). Each item is returned once, with an
+// OriginalPath that is free on disk and not shared with another returned item.
 func CheckRestoreItems(patterns []string, config types.Config) tea.Cmd {
 	return func() tea.Msg {
 		index, err := LoadIndex(config)
@@ -366,15 +380,17 @@ func CheckRestoreItems(patterns []string, config types.Config) tea.Cmd {
 		}
 
 		var matchingItems []types.DeletedItem
+		seen := make(map[string]bool)
+		claimed := make(map[string]bool)
 		for _, pattern := range patterns {
 			for _, item := range index.Items {
-				// Simple pattern matching - check if pattern is contained in original path
-				if strings.Contains(strings.ToLower(item.OriginalPath), strings.ToLower(pattern)) {
-					// Resolve conflicts for the restore path
-					resolvedItem := item
-					resolvedItem.OriginalPath = resolvePathConflict(item.OriginalPath)
-					matchingItems = append(matchingItems, resolvedItem)
+				if seen[item.ID] || !matchesPattern(item.OriginalPath, pattern) {
+					continue
 				}
+				seen[item.ID] = true
+				item.OriginalPath = resolvePathConflict(item.OriginalPath, claimed)
+				claimed[item.OriginalPath] = true
+				matchingItems = append(matchingItems, item)
 			}
 		}
 
@@ -382,11 +398,28 @@ func CheckRestoreItems(patterns []string, config types.Config) tea.Cmd {
 	}
 }
 
-// resolvePathConflict checks if a path exists and appends a number if needed.
-// For example: test -> test1 -> test2, etc.
-func resolvePathConflict(originalPath string) string {
-	// If no conflict, return original path
-	if _, err := os.Stat(originalPath); os.IsNotExist(err) {
+// matchesPattern reports whether pattern is a case-insensitive substring of
+// path or a glob matching its base name. Both are tried so that a literal name
+// like "photo[1].jpg" still finds itself.
+func matchesPattern(path, pattern string) bool {
+	path, pattern = strings.ToLower(path), strings.ToLower(pattern)
+	if strings.Contains(path, pattern) {
+		return true
+	}
+	matched, _ := filepath.Match(pattern, filepath.Base(path))
+	return matched
+}
+
+// resolvePathConflict returns originalPath if it is free, otherwise the first
+// free numbered variant. For example: test -> test1 -> test2, etc. A path is
+// taken if it is in claimed or something exists there, including a dangling symlink.
+func resolvePathConflict(originalPath string, claimed map[string]bool) string {
+	taken := func(path string) bool {
+		_, err := os.Lstat(path)
+		return claimed[path] || err == nil
+	}
+
+	if !taken(originalPath) {
 		return originalPath
 	}
 
@@ -396,21 +429,12 @@ func resolvePathConflict(originalPath string) string {
 	ext := filepath.Ext(base)
 	nameWithoutExt := strings.TrimSuffix(base, ext)
 
-	// Try appending numbers until we find a non-existent path
-	counter := 1
-	for {
-		var newName string
-		if ext != "" {
-			newName = fmt.Sprintf("%s%d%s", nameWithoutExt, counter, ext)
-		} else {
-			newName = fmt.Sprintf("%s%d", nameWithoutExt, counter)
-		}
-
-		newPath := filepath.Join(dir, newName)
-		if _, err := os.Stat(newPath); os.IsNotExist(err) {
+	// Try appending numbers until we find a free path
+	for counter := 1; ; counter++ {
+		newPath := filepath.Join(dir, fmt.Sprintf("%s%d%s", nameWithoutExt, counter, ext))
+		if !taken(newPath) {
 			return newPath
 		}
-		counter++
 	}
 }
 
@@ -421,7 +445,8 @@ func CheckFilesExist(filenames []string) tea.Cmd {
 		fileInfos := make([]types.FileInfo, len(filenames))
 
 		for i, filename := range filenames {
-			stat, err := os.Stat(filename)
+			// Lstat: a dangling symlink exists and can be deleted.
+			stat, err := os.Lstat(filename)
 			if err != nil {
 				fileInfos[i] = types.FileInfo{
 					Path:   filename,
@@ -510,37 +535,15 @@ func MoveFile(src, dst string) error {
 		return MoveSymlink(src, dst)
 	}
 
-	// For regular files, use the copy approach
-	sourceFile, err := os.Open(src)
-	if err != nil {
-		return err
-	}
-	defer sourceFile.Close()
-
-	destFile, err := os.Create(dst)
-	if err != nil {
-		return err
-	}
-	defer destFile.Close()
-
-	// Copy file contents
-	_, err = io.Copy(destFile, sourceFile)
-	if err != nil {
+	// Rename keeps metadata and handles FIFOs and sockets, which can't be copied.
+	err = os.Rename(src, dst)
+	if !errors.Is(err, syscall.EXDEV) {
 		return err
 	}
 
-	// Get source file permissions
-	srcInfo, err := sourceFile.Stat()
-	if err != nil {
+	if err := CopyFile(src, dst); err != nil {
 		return err
 	}
-
-	// Set destination file permissions
-	if err := destFile.Chmod(srcInfo.Mode()); err != nil {
-		return err
-	}
-
-	// Remove original file
 	return os.Remove(src)
 }
 
@@ -549,11 +552,18 @@ func MoveFile(src, dst string) error {
 // if that fails. Properly handles symlinks within directories.
 func MoveDirectory(src, dst string) error {
 	// Use os.Rename for atomic operation when possible (same filesystem)
-	if err := os.Rename(src, dst); err == nil {
+	err := os.Rename(src, dst)
+	if err == nil {
 		return nil
 	}
 
-	// Fallback to copy + remove for cross-filesystem moves
+	// Moving a directory into itself. Copying would recurse into its own output.
+	if errors.Is(err, syscall.EINVAL) {
+		return err
+	}
+
+	// Fallback to copy + remove for cross-filesystem moves, and for read-only
+	// directories, which can't be renamed to a new parent
 	if err := CopyDirectory(src, dst); err != nil {
 		return err
 	}
@@ -594,8 +604,8 @@ func CopyDirectory(src, dst string) error {
 		return err
 	}
 
-	// Create destination directory
-	if err := os.MkdirAll(dst, srcInfo.Mode()); err != nil {
+	// Create destination directory, writable until it's filled
+	if err := os.MkdirAll(dst, srcInfo.Mode().Perm()|0700); err != nil {
 		return err
 	}
 
@@ -636,6 +646,10 @@ func CopyDirectory(src, dst string) error {
 		}
 	}
 
+	if err := os.Chmod(dst, srcInfo.Mode()); err != nil {
+		return fmt.Errorf("failed to preserve mode for directory %s: %w", dst, err)
+	}
+
 	// Preserve the directory's modification time. This must happen after
 	// all entries have been written, since creating entries inside dst
 	// updates dst's mtime.
@@ -649,18 +663,22 @@ func CopyDirectory(src, dst string) error {
 
 // CopyFile copies a file from src to dst, preserving its permissions and
 // modification time. Returns an error if opening, copying, or creating fails.
-// Does not follow symlinks - use MoveSymlink for that.
+// Only regular files can be copied: opening a FIFO would block forever, and
+// symlinks need MoveSymlink.
 func CopyFile(src, dst string) error {
+	srcInfo, err := os.Lstat(src)
+	if err != nil {
+		return err
+	}
+	if !srcInfo.Mode().IsRegular() {
+		return fmt.Errorf("cannot copy %s: not a regular file", src)
+	}
+
 	srcFile, err := os.Open(src)
 	if err != nil {
 		return err
 	}
 	defer srcFile.Close()
-
-	srcInfo, err := srcFile.Stat()
-	if err != nil {
-		return err
-	}
 
 	dstFile, err := os.Create(dst)
 	if err != nil {

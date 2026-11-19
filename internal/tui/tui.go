@@ -115,8 +115,8 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					m.State = "restoring"
 				} else {
 					m.State = "moving"
+					m.CurrentIndex = helpers.FindNextValidFile(m.FileInfos, 0)
 				}
-				m.CurrentIndex = 0
 				return m, tea.Batch(
 					m.Progress.SetPercent(0.3),
 					processNextItem(m),
@@ -150,7 +150,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if m.NoConfirm {
 			m.Confirmed = true
 			m.State = "moving"
-			m.CurrentIndex = 0
+			m.CurrentIndex = helpers.FindNextValidFile(m.FileInfos, 0)
 			return m, tea.Batch(
 				m.Progress.SetPercent(0.3),
 				processNextItem(m),
@@ -357,20 +357,7 @@ func restoreFromCache(item types.DeletedItem, config types.Config) tea.Cmd {
 			return types.RestoreMsg{Err: fmt.Errorf("destination already exists: %s", item.OriginalPath)}
 		}
 
-		// Restore based on item type
-		var err error
-		if item.IsSymlink {
-			// Restore symlink
-			err = helpers.RestoreSymlink(item.CachePath, item.OriginalPath)
-		} else if item.IsDirectory {
-			// Restore directory
-			err = helpers.MoveDirectory(item.CachePath, item.OriginalPath)
-		} else {
-			// Restore regular file
-			err = helpers.MoveFile(item.CachePath, item.OriginalPath)
-		}
-
-		if err != nil {
+		if err := moveToOriginalPath(item); err != nil {
 			return types.RestoreMsg{Err: fmt.Errorf("failed to restore %s: %v", item.ItemType(), err)}
 		}
 
@@ -403,6 +390,17 @@ func restoreFromCache(item types.DeletedItem, config types.Config) tea.Cmd {
 	}
 }
 
+// moveToOriginalPath moves a cached item back based on its type.
+func moveToOriginalPath(item types.DeletedItem) error {
+	if item.IsSymlink {
+		return helpers.RestoreSymlink(item.CachePath, item.OriginalPath)
+	}
+	if item.IsDirectory {
+		return helpers.MoveDirectory(item.CachePath, item.OriginalPath)
+	}
+	return helpers.MoveFile(item.CachePath, item.OriginalPath)
+}
+
 // moveFileToCache moves a file, directory, or symlink to the cache
 func moveFileToCache(filename string, config types.Config) tea.Cmd {
 	return func() tea.Msg {
@@ -430,6 +428,10 @@ func moveFileToCache(filename string, config types.Config) tea.Cmd {
 		timestamp := now.Format("2006-01-02-15-04-05")
 		baseFilename := filepath.Base(filename)
 		cacheFilename := fmt.Sprintf("%s-%s-%s", id, timestamp, baseFilename)
+		// Linux caps names at 255 bytes. The index keeps the real name for restore.
+		if len(cacheFilename) > 255 {
+			cacheFilename = fmt.Sprintf("%s-%s", id, timestamp)
+		}
 		cachePath := filepath.Join(cacheDir, cacheFilename)
 
 		// Determine file type
@@ -485,7 +487,11 @@ func moveFileToCache(filename string, config types.Config) tea.Cmd {
 
 		// Update index
 		if err := helpers.AddToIndex(item, config); err != nil {
-			return types.FileMoveMsg{Err: fmt.Errorf("failed to update index: %v", err)}
+			// An unindexed file can never be restored, so put it back.
+			if undoErr := moveToOriginalPath(item); undoErr != nil {
+				return types.FileMoveMsg{Err: fmt.Errorf("failed to update index: %v; file left at %s: %v", err, cachePath, undoErr)}
+			}
+			return types.FileMoveMsg{Err: fmt.Errorf("failed to update index, file left in place: %v", err)}
 		}
 
 		// Log the operation
@@ -499,39 +505,9 @@ func moveFileToCache(filename string, config types.Config) tea.Cmd {
 
 func cleanupOldFiles(config types.Config) tea.Cmd {
 	return func() tea.Msg {
-		cutoffDays := time.Duration(config.Cache.Days) * 24 * time.Hour
-		cutoff := time.Now().Add(-cutoffDays)
-
-		index, err := helpers.LoadIndex(config)
-		if err != nil {
-			return types.ErrorMsg(fmt.Sprintf("Error loading index: %v", err))
+		if _, err := helpers.CleanupExpired(config); err != nil {
+			return types.ErrorMsg(fmt.Sprintf("Error cleaning up old files: %v", err))
 		}
-
-		var remainingItems []types.DeletedItem
-		for _, item := range index.Items {
-			if item.DeleteDate.Before(cutoff) {
-				// Remove the actual file or directory
-				if item.IsDirectory {
-					os.RemoveAll(item.CachePath)
-				} else {
-					os.Remove(item.CachePath)
-				}
-
-				// Log cleanup
-				if config.Logging.Enabled {
-					helpers.LogOperation("CLEANUP", item, config)
-				}
-			} else {
-				remainingItems = append(remainingItems, item)
-			}
-		}
-
-		// Update index
-		index.Items = remainingItems
-		if err := helpers.SaveIndex(index, config); err != nil {
-			return types.ErrorMsg(fmt.Sprintf("Error updating index: %v", err))
-		}
-
 		return types.CleanupMsg{}
 	}
 }

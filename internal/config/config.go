@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 
 	"github.com/BurntSushi/toml"
+	"vanish/internal/helpers"
 	"vanish/internal/types"
 )
 
@@ -227,7 +228,7 @@ no_confirm = false
 	return os.WriteFile(configPath, []byte(configContent), 0644)
 }
 
-// LoadConfig loads the user's configuration from ~/.config/vanish/vanish.toml.
+// LoadConfig loads the user's configuration from helpers.GetConfigPath().
 // If the file does not exist, it creates a default config.
 // It also applies any matching theme and preserves custom overrides.
 func LoadConfig() (types.Config, error) {
@@ -236,7 +237,7 @@ func LoadConfig() (types.Config, error) {
 		return types.Config{}, err
 	}
 
-	configPath := filepath.Join(homeDir, ".config", "vanish", "vanish.toml")
+	configPath := helpers.GetConfigPath()
 
 	// Default configuration
 	config := types.Config{}

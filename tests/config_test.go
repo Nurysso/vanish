@@ -8,6 +8,8 @@ import (
 )
 
 func TestLoadConfig(t *testing.T) {
+	t.Setenv("XDG_CONFIG_HOME", "")
+
 	// Save original home dir and restore after test
 	originalHome := os.Getenv("HOME")
 	defer os.Setenv("HOME", originalHome)

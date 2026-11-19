@@ -118,4 +118,4 @@ Always back up your config file before making changes, especially if your cache 
 
 ---
 
-> **Tip:** Vanish automatically creates default configuration in `$HOME/.config/vanish/vanish.toml` if none exists.
+> **Tip:** Vanish automatically creates default configuration in `$XDG_CONFIG_HOME/vanish/vanish.toml` (`$HOME/.config/vanish/vanish.toml` when unset) if none exists.
